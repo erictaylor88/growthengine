@@ -14,14 +14,19 @@ const platformIcons: Record<string, string> = {
   x: "𝕏",
 };
 
+type ProductLink = { id: string; product_id: string; community_id: string };
+
 export function CommunityList({
   initialCommunities,
   products,
+  initialLinks,
 }: {
   initialCommunities: Community[];
   products: ProductRef[];
+  initialLinks: ProductLink[];
 }) {
   const [communities, setCommunities] = useState<Community[]>(initialCommunities);
+  const [links, setLinks] = useState<ProductLink[]>(initialLinks);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [platform, setPlatform] = useState<string>("reddit");
@@ -30,6 +35,7 @@ export function CommunityList({
   const [keywordsInput, setKeywordsInput] = useState("");
   const [rulesNotes, setRulesNotes] = useState("");
   const [scanEnabled, setScanEnabled] = useState(true);
+  const [linkedProductIds, setLinkedProductIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -42,6 +48,7 @@ export function CommunityList({
     setKeywordsInput("");
     setRulesNotes("");
     setScanEnabled(true);
+    setLinkedProductIds(new Set());
     setEditingId(null);
     setShowForm(false);
     setError(null);
@@ -54,6 +61,9 @@ export function CommunityList({
     setKeywordsInput((c.keywords ?? []).join(", "));
     setRulesNotes(c.rules_notes ?? "");
     setScanEnabled(c.scan_enabled);
+    setLinkedProductIds(
+      new Set(links.filter((l) => l.community_id === c.id).map((l) => l.product_id))
+    );
     setEditingId(c.id);
     setShowForm(true);
   }
@@ -80,6 +90,8 @@ export function CommunityList({
       scan_enabled: scanEnabled,
     };
 
+    let communityId: string;
+
     if (editingId) {
       const { data, error: err } = await supabase
         .from("communities")
@@ -96,6 +108,7 @@ export function CommunityList({
       setCommunities((prev) =>
         prev.map((c) => (c.id === editingId ? data : c))
       );
+      communityId = editingId;
     } else {
       const { data, error: err } = await supabase
         .from("communities")
@@ -109,6 +122,32 @@ export function CommunityList({
         return;
       }
       setCommunities((prev) => [...prev, data]);
+      communityId = data.id;
+    }
+
+    // Sync product-community links
+    const existingLinks = links.filter((l) => l.community_id === communityId);
+    const existingProductIds = new Set(existingLinks.map((l) => l.product_id));
+
+    const toAdd = [...linkedProductIds].filter((pid) => !existingProductIds.has(pid));
+    const toRemove = existingLinks.filter((l) => !linkedProductIds.has(l.product_id));
+
+    if (toRemove.length > 0) {
+      await supabase
+        .from("product_communities")
+        .delete()
+        .in("id", toRemove.map((l) => l.id));
+      setLinks((prev) => prev.filter((l) => !toRemove.some((r) => r.id === l.id)));
+    }
+
+    if (toAdd.length > 0) {
+      const { data: newLinks } = await supabase
+        .from("product_communities")
+        .insert(toAdd.map((pid) => ({ product_id: pid, community_id: communityId })))
+        .select("id, product_id, community_id");
+      if (newLinks) {
+        setLinks((prev) => [...prev, ...newLinks]);
+      }
     }
 
     setSaving(false);
@@ -227,6 +266,42 @@ export function CommunityList({
             <span className="text-sm text-text-secondary">Enable scanning</span>
           </label>
 
+          {/* Product linking */}
+          {products.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                Linked Products
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {products.map((p) => (
+                  <label
+                    key={p.id}
+                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs cursor-pointer transition-colors duration-150 ${
+                      linkedProductIds.has(p.id)
+                        ? "bg-accent-muted text-accent-text border border-accent"
+                        : "border border-border-default text-text-secondary hover:bg-[rgba(255,255,255,0.04)]"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={linkedProductIds.has(p.id)}
+                      onChange={(e) => {
+                        setLinkedProductIds((prev) => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.add(p.id);
+                          else next.delete(p.id);
+                          return next;
+                        });
+                      }}
+                      className="sr-only"
+                    />
+                    {p.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
           {error && <p className="text-xs text-error">{error}</p>}
 
           <div className="flex gap-3">
@@ -290,6 +365,23 @@ export function CommunityList({
                               {kw}
                             </span>
                           ))}
+                        </div>
+                      )}
+                      {links.filter((l) => l.community_id === c.id).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {links
+                            .filter((l) => l.community_id === c.id)
+                            .map((l) => {
+                              const prod = products.find((p) => p.id === l.product_id);
+                              return prod ? (
+                                <span
+                                  key={l.id}
+                                  className="rounded-full px-2 py-0.5 text-[11px] bg-accent-muted text-accent-text"
+                                >
+                                  {prod.name}
+                                </span>
+                              ) : null;
+                            })}
                         </div>
                       )}
                     </div>

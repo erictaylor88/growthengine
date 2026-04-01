@@ -4,7 +4,7 @@ import { CommunityList } from "./community-list";
 export default async function CommunitiesPage() {
   const supabase = await createClient();
 
-  const [communitiesRes, productsRes] = await Promise.all([
+  const [communitiesRes, productsRes, linksRes] = await Promise.all([
     supabase
       .from("communities")
       .select("id, platform, name, display_name, keywords, rules_notes, scan_enabled, created_at, updated_at")
@@ -15,6 +15,9 @@ export default async function CommunitiesPage() {
       .select("id, name")
       .eq("status", "active")
       .order("name"),
+    supabase
+      .from("product_communities")
+      .select("id, product_id, community_id"),
   ]);
 
   return (
@@ -32,6 +35,7 @@ export default async function CommunitiesPage() {
         <CommunityList
           initialCommunities={communitiesRes.data ?? []}
           products={productsRes.data ?? []}
+          initialLinks={linksRes.data ?? []}
         />
       )}
     </div>

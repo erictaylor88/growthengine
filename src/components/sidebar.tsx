@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
   ListTodo,
@@ -13,20 +14,50 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const navItems = [
-  { label: "Overview", href: "/", icon: LayoutDashboard },
-  { label: "Queue", href: "/queue", icon: ListTodo },
-  { label: "Discovered", href: "/discovered", icon: Search },
-  { label: "Communities", href: "/communities", icon: Users },
-  { label: "Products", href: "/products", icon: Package },
-  { label: "Analytics", href: "/analytics", icon: BarChart3 },
+  { label: "Overview", href: "/", icon: LayoutDashboard, badgeKey: null },
+  { label: "Queue", href: "/queue", icon: ListTodo, badgeKey: "pending" as const },
+  { label: "Discovered", href: "/discovered", icon: Search, badgeKey: "discovered" as const },
+  { label: "Communities", href: "/communities", icon: Users, badgeKey: null },
+  { label: "Products", href: "/products", icon: Package, badgeKey: null },
+  { label: "Analytics", href: "/analytics", icon: BarChart3, badgeKey: null },
 ];
+
+type BadgeCounts = { pending: number; discovered: number };
 
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [badges, setBadges] = useState<BadgeCounts>({ pending: 0, discovered: 0 });
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    async function fetchCounts() {
+      const [pendingRes, discoveredRes] = await Promise.all([
+        supabase
+          .from("content_queue")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending"),
+        supabase
+          .from("discovered_threads")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "new"),
+      ]);
+      setBadges({
+        pending: pendingRes.count ?? 0,
+        discovered: discoveredRes.count ?? 0,
+      });
+    }
+
+    fetchCounts();
+
+    // Re-fetch counts when the page changes (user may have approved/skipped items)
+    const interval = setInterval(fetchCounts, 30000);
+    return () => clearInterval(interval);
+  }, [pathname]);
 
   return (
     <aside
@@ -57,6 +88,8 @@ export function Sidebar() {
                 ? pathname === "/"
                 : pathname.startsWith(item.href);
 
+            const badgeCount = item.badgeKey ? badges[item.badgeKey] : 0;
+
             return (
               <li key={item.href}>
                 <Link
@@ -70,7 +103,19 @@ export function Sidebar() {
                   )}
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
-                  {!collapsed && <span>{item.label}</span>}
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1">{item.label}</span>
+                      {badgeCount > 0 && (
+                        <span className="rounded-full bg-accent-muted px-1.5 py-0.5 text-[10px] font-mono font-medium text-accent-text min-w-[20px] text-center">
+                          {badgeCount}
+                        </span>
+                      )}
+                    </>
+                  )}
+                  {collapsed && badgeCount > 0 && (
+                    <span className="absolute top-0.5 right-1 h-2 w-2 rounded-full bg-accent" />
+                  )}
                 </Link>
               </li>
             );
