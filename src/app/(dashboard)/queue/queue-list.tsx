@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
+  Link2,
 } from "lucide-react";
 
 type QueueItem = Tables<"content_queue">;
@@ -79,6 +80,10 @@ export function QueueList({
   const [newDraftText, setNewDraftText] = useState("");
   const [newError, setNewError] = useState<string | null>(null);
   const [newSaving, setNewSaving] = useState(false);
+
+  // --- Mark as published state ---
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [publishUrl, setPublishUrl] = useState("");
 
   // --- Helpers ---
   const communityMap = new Map(communities.map((c) => [c.id, c]));
@@ -219,6 +224,45 @@ export function QueueList({
       else next.add(id);
       return next;
     });
+  }
+
+  // --- Mark as Published ---
+  async function markPublished(item: QueueItem) {
+    setSaving(item.id);
+    const community = communityMap.get(item.community_id);
+
+    // Create published_content record
+    const { error: pubErr } = await supabase.from("published_content").insert({
+      queue_item_id: item.id,
+      community_id: item.community_id,
+      product_id: item.product_id,
+      platform: community?.platform ?? "reddit",
+      content_type: item.content_type,
+      text: item.draft_text,
+      url: publishUrl.trim() || null,
+      external_id: null,
+    });
+
+    if (!pubErr) {
+      // Update queue item status
+      await supabase
+        .from("content_queue")
+        .update({ status: "published", reviewed_at: new Date().toISOString() })
+        .eq("id", item.id);
+
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === item.id
+            ? { ...i, status: "published", reviewed_at: new Date().toISOString() }
+            : i
+        )
+      );
+    }
+
+    setPublishingId(null);
+    setPublishUrl("");
+    setSaving(null);
+    router.refresh();
   }
 
   // --- New Draft ---
@@ -602,10 +646,50 @@ export function QueueList({
                   )}
 
                   {item.status === "approved" && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-[11px] text-text-tertiary">
-                        Reddit API pending — publish disabled
-                      </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {publishingId === item.id ? (
+                        <div className="flex items-center gap-2 w-full">
+                          <input
+                            value={publishUrl}
+                            onChange={(e) => setPublishUrl(e.target.value)}
+                            placeholder="Paste URL after posting manually (optional)"
+                            className="flex-1 rounded-md border border-border-default bg-bg-base px-2 py-1.5 text-xs font-mono text-text-primary placeholder:text-text-tertiary focus:border-border-strong focus:outline-none focus:ring-1 focus:ring-accent"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") markPublished(item);
+                              if (e.key === "Escape") {
+                                setPublishingId(null);
+                                setPublishUrl("");
+                              }
+                            }}
+                          />
+                          <button
+                            onClick={() => markPublished(item)}
+                            disabled={isSaving}
+                            className="flex items-center gap-1 rounded-md bg-success/90 px-3 py-1.5 text-xs font-medium text-[#09090B] hover:bg-success transition-colors disabled:opacity-40 shrink-0"
+                          >
+                            <Check className="h-3 w-3" />
+                            Confirm
+                          </button>
+                          <button
+                            onClick={() => {
+                              setPublishingId(null);
+                              setPublishUrl("");
+                            }}
+                            className="rounded-md border border-border-default px-2 py-1.5 text-xs text-text-tertiary hover:text-text-secondary transition-colors shrink-0"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setPublishingId(item.id)}
+                          className="flex items-center gap-1.5 rounded-md border border-border-default px-3 py-1.5 text-xs text-text-secondary hover:bg-[rgba(255,255,255,0.04)] transition-colors"
+                        >
+                          <Link2 className="h-3 w-3" />
+                          Mark as Published
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
