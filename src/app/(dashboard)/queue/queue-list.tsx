@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/types";
@@ -68,6 +68,7 @@ export function QueueList({
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [showNewDraft, setShowNewDraft] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const router = useRouter();
   const supabase = createClient();
 
@@ -98,6 +99,71 @@ export function QueueList({
   });
 
   const pendingCount = items.filter((i) => i.status === "pending").length;
+
+  // --- Keyboard shortcuts ---
+  // Reset selection when filters change
+  useEffect(() => {
+    setSelectedIndex(-1);
+  }, [statusFilter, platformFilter]);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Don't handle shortcuts when typing in inputs/textareas or when slide-over is open
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (showNewDraft) return;
+      if (editingId) return;
+
+      switch (e.key) {
+        case "j": {
+          e.preventDefault();
+          setSelectedIndex((prev) => Math.min(prev + 1, filtered.length - 1));
+          break;
+        }
+        case "k": {
+          e.preventDefault();
+          setSelectedIndex((prev) => Math.max(prev - 1, 0));
+          break;
+        }
+        case "a": {
+          e.preventDefault();
+          if (selectedIndex >= 0 && selectedIndex < filtered.length) {
+            const item = filtered[selectedIndex];
+            if (item.status === "pending") updateStatus(item.id, "approved");
+          }
+          break;
+        }
+        case "r": {
+          e.preventDefault();
+          if (selectedIndex >= 0 && selectedIndex < filtered.length) {
+            const item = filtered[selectedIndex];
+            if (item.status === "pending") updateStatus(item.id, "rejected");
+          }
+          break;
+        }
+        case "e": {
+          e.preventDefault();
+          if (selectedIndex >= 0 && selectedIndex < filtered.length) {
+            const item = filtered[selectedIndex];
+            if (item.status === "pending") startEdit(item);
+          }
+          break;
+        }
+        case "n": {
+          e.preventDefault();
+          setShowNewDraft(true);
+          break;
+        }
+        case "Escape": {
+          setSelectedIndex(-1);
+          break;
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [filtered, selectedIndex, showNewDraft, editingId]);
 
   // --- Actions ---
   async function updateStatus(id: string, status: string) {
@@ -384,7 +450,7 @@ export function QueueList({
 
       {/* --- Queue Item Cards --- */}
       <div className="mt-4 space-y-2">
-        {filtered.map((item) => {
+        {filtered.map((item, index) => {
           const community = communityMap.get(item.community_id);
           const product = item.product_id
             ? productMap.get(item.product_id)
@@ -396,11 +462,17 @@ export function QueueList({
           const isExpanded = expandedIds.has(item.id);
           const isLongDraft = item.draft_text.split("\n").length > 6 || item.draft_text.length > 400;
           const isSaving = saving === item.id;
+          const isSelected = selectedIndex === index;
 
           return (
             <div
               key={item.id}
-              className="rounded-md border border-border-subtle bg-bg-raised p-4 hover:bg-[rgba(255,255,255,0.02)] transition-colors duration-150"
+              onClick={() => setSelectedIndex(index)}
+              className={`rounded-md border p-4 transition-colors duration-150 cursor-default ${
+                isSelected
+                  ? "border-accent/40 bg-[rgba(20,184,166,0.04)]"
+                  : "border-border-subtle bg-bg-raised hover:bg-[rgba(255,255,255,0.02)]"
+              }`}
             >
               {/* Top row: platform + community | content type + status */}
               <div className="flex items-center justify-between gap-2">
@@ -551,6 +623,33 @@ export function QueueList({
               ? "No drafts yet. Create one to get started."
               : "No items match the current filters."}
           </p>
+        </div>
+      )}
+
+      {/* --- Keyboard shortcuts hint --- */}
+      {filtered.length > 0 && (
+        <div className="mt-4 flex items-center justify-center gap-4 text-[10px] text-text-ghost">
+          <span>
+            <kbd className="rounded border border-border-subtle bg-bg-inset px-1.5 py-0.5 font-mono">j</kbd>
+            <kbd className="rounded border border-border-subtle bg-bg-inset px-1.5 py-0.5 font-mono ml-0.5">k</kbd>
+            {" "}navigate
+          </span>
+          <span>
+            <kbd className="rounded border border-border-subtle bg-bg-inset px-1.5 py-0.5 font-mono">a</kbd>
+            {" "}approve
+          </span>
+          <span>
+            <kbd className="rounded border border-border-subtle bg-bg-inset px-1.5 py-0.5 font-mono">r</kbd>
+            {" "}reject
+          </span>
+          <span>
+            <kbd className="rounded border border-border-subtle bg-bg-inset px-1.5 py-0.5 font-mono">e</kbd>
+            {" "}edit
+          </span>
+          <span>
+            <kbd className="rounded border border-border-subtle bg-bg-inset px-1.5 py-0.5 font-mono">n</kbd>
+            {" "}new draft
+          </span>
         </div>
       )}
     </div>
