@@ -1,0 +1,138 @@
+@import "tailwindcss";
+
+/* === Zinc Ops Design System === */
+
+:root {
+  /* Backgrounds */
+  --bg-base: #09090B;
+  --bg-raised: #18181B;
+  --bg-overlay: #27272A;
+  --bg-inset: #0F0F11;
+
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.15);
+
+  /* Text */
+  --text-primary: #FAFAFA;
+  --text-secondary: #A1A1AA;
+  --text-tertiary: #71717A;
+  --text-ghost: #52525B;
+
+  /* Accent */
+  --accent-primary: #14B8A6;
+  --accent-primary-hover: #0D9488;
+  --accent-primary-muted: rgba(20, 184, 166, 0.15);
+  --accent-primary-text: #5EEAD4;
+
+  /* Semantic */
+  --success: #22C55E;
+  --success-muted: rgba(34, 197, 94, 0.15);
+  --error: #EF4444;
+  --error-muted: rgba(239, 68, 68, 0.15);
+  --warning: #F59E0B;
+  --warning-muted: rgba(245, 158, 11, 0.15);
+  --info: #3B82F6;
+  --info-muted: rgba(59, 130, 246, 0.15);
+
+  /* Platform */
+  --platform-reddit: #FF4500;
+  --platform-x: #FAFAFA;
+
+  /* Chart */
+  --chart-1: #14B8A6;
+  --chart-2: #3B82F6;
+  --chart-3: #A78BFA;
+  --chart-4: #F59E0B;
+  --chart-5: #EC4899;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 9999px;
+}
+
+/* Tailwind v4 theme integration */
+@theme inline {
+  --color-background: var(--bg-base);
+  --color-foreground: var(--text-primary);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --color-bg-base: var(--bg-base);
+  --color-bg-raised: var(--bg-raised);
+  --color-bg-overlay: var(--bg-overlay);
+  --color-bg-inset: var(--bg-inset);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-ghost: var(--text-ghost);
+
+  --color-accent: var(--accent-primary);
+  --color-accent-hover: var(--accent-primary-hover);
+  --color-accent-muted: var(--accent-primary-muted);
+  --color-accent-text: var(--accent-primary-text);
+
+  --color-success: var(--success);
+  --color-success-muted: var(--success-muted);
+  --color-error: var(--error);
+  --color-error-muted: var(--error-muted);
+  --color-warning: var(--warning);
+  --color-warning-muted: var(--warning-muted);
+  --color-info: var(--info);
+  --color-info-muted: var(--info-muted);
+
+  --color-reddit: var(--platform-reddit);
+  --color-x-platform: var(--platform-x);
+}
+
+/* Base styles */
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-geist-sans), -apple-system, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

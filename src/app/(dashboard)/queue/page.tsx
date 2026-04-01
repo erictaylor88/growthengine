@@ -1,0 +1,20 @@
+export default function QueuePage() {
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-[32px] font-semibold tracking-[-0.03em] leading-[1.2] text-text-primary">
+            Queue
+          </h1>
+          <p className="mt-2 text-sm text-text-secondary">
+            Review, edit, and approve drafted content before publishing.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <p className="text-sm text-text-tertiary">No queue items yet.</p>
+      </div>
+    </div>
+  );
+}
